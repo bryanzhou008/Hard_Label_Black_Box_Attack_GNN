@@ -13,10 +13,19 @@ import torch_geometric.transforms as T
 from Gin import GIN, SAG, GUNet
 from time import time
 
+
+# import warnings filter
+from warnings import simplefilter
+# ignore all future warnings
+simplefilter(action='ignore', category=FutureWarning)
+
 def get_args():
     parser = argparse.ArgumentParser(description='Pytorch graph isomorphism network for graph classification')
     #these are parameters for attack model
-
+    parser.add_argument('--node_injection', action='store_true')
+    parser.add_argument('--injection_percentage', type=float, default=0.05)
+    parser.add_argument('--initialization', type=str, default="node_mean")
+    parser.add_argument('--bin_search_depth', type=int, default=2000)
     parser.add_argument('--effective', type=int, default=1)
     parser.add_argument('--max_query', type=int, default=40000)
     parser.add_argument('--id', type= int, default=1)
@@ -83,7 +92,7 @@ if __name__ == '__main__':
         load_path = model_path + '{}_{}.pt'.format(dataset_name, model_name)
     elif model_name=='GIN':
         model = GIN(5,2,input_dim,hidden_dim,output_dim,dropout).to(device)
-        load_path = model_path + '{}.pt'.format(dataset_name)
+        load_path = model_path + '{}_{}.pt'.format(dataset_name, model_name)
     elif model_name=='GUN':
         model = GUNet(input_dim,hidden_dim,output_dim,0.8,3,dropout).to(device)
         load_path = model_path + '{}_{}.pt'.format(dataset_name, model_name)
@@ -112,6 +121,7 @@ if __name__ == '__main__':
     detect_test_advers = []
 
     num_add_edge, num_delete_edge = [], []
+    num_success = 0
     for i in range(num_test):
         print('begin to attack instance {}'.format(i))
         x0 = test_dataset[i].to(device)
@@ -122,6 +132,8 @@ if __name__ == '__main__':
         if y0 == y1:
             time_start = time()
             adv_x0, adv_y0, query, success, dis, init = attacker.attack_untargeted(x0, y0, query_limit=args.max_query)
+            if y0 != adv_y0:
+                num_success += 1
             time_end = time()
             init_num_query.append(init[2])
             num_query.append(query)
@@ -178,20 +190,22 @@ if __name__ == '__main__':
             init_attack_time.append(0)
             search_type.append(0)
             init_perturbation_ratio.append(0)
+        
+        print(f"attack loop: success in {num_success} out of {i+1} instances, with {no_need_count} instances no need to attack")
 
     
     print('{} instances don\'t need to be attacked'.format(no_need_count))
-    '''
-    success_ratio = success_count / (num_test - no_need_count)*100
-    avg_perturbation = sum(perturbation) / success_count
-    print("Sign-Opt: the success rate of black-box attack is {}/{} = {:.4f}".format(success_count,num_test-no_need_count, success_ratio))
+    
+    success_ratio = num_success / (num_test - no_need_count)*100
+    avg_perturbation = sum(perturbation) / num_success
+    print("Sign-Opt: the success rate of black-box attack is {}/{} = {:.4f}".format(num_success,num_test-no_need_count, success_ratio))
     print('Sign-Opt: the average perturbation is {:.4f}'.format(avg_perturbation))
-    print('Sign-Opt: the average perturbation ratio is {:.4f}'.format(sum(perturbation_ratio) / success_count*100))
+    print('Sign-Opt: the average perturbation ratio is {:.4f}'.format(sum(perturbation_ratio) / num_success*100))
     print('Sign-Opt: the average query count is {:.4f}'.format(sum(num_query)/(num_test-no_need_count)))
     print('Sign-Opt: the average attacking time is {:.4f}'.format(sum(attack_time)/(num_test-no_need_count)))
-    print('Sign-Opt: the average distortion is {:.4f}'.format(sum(distortion)/success_count))
+    print('Sign-Opt: the average distortion is {:.4f}'.format(sum(distortion)/num_success))
     print('dataset: {}'.format(dataset_name))
-    '''
+    
     if args.search == 1 and args.effective == 1 and args.id ==1: 
         detect_test_path = './defense/'+dataset_name+'_'+model_name+'_Our_'
         torch.save(detect_test_normal, detect_test_path+'test_normal.pt')
@@ -239,12 +253,12 @@ if __name__ == '__main__':
     with open(out_path, 'w') as f:
         f.write('{} instances don\'t need to be attacked\n'.format(no_need_count))
         f.write('Sign-Opt fails to attack {} instance\n'.format(fail_count))
-        f.write("Sign-Opt: the success rate of black-box attack is {}/{} = {:.4f}\n".format(success_count,num_test-no_need_count, success_ratio))
+        f.write("Sign-Opt: the success rate of black-box attack is {}/{} = {:.4f}\n".format(num_success,num_test-no_need_count, success_ratio))
         f.write('Sign-Opt: the average perturbation is {:.4f}\n'.format(avg_perturbation))
-        f.write('Sign-Opt: the average perturbation ratio is {:.4f}\n'.format(sum(perturbation_ratio) / success_count*100))
+        f.write('Sign-Opt: the average perturbation ratio is {:.4f}\n'.format(sum(perturbation_ratio) / num_success*100))
         f.write('Sign-Opt: the average query count is {:.4f}\n'.format(sum(num_query)/(num_test-no_need_count)))
         f.write('Sign-Opt: the average attacking time is {:.4f}\n'.format(sum(attack_time)/(num_test-no_need_count)))
-        f.write('Sign-Opt: the average distortion is {:.4f}\n'.format(sum(distortion)/success_count))
+        f.write('Sign-Opt: the average distortion is {:.4f}\n'.format(sum(distortion)/num_success))
         f.write('Sign-Opt: detail perturbation are: {}\n'.format(perturbation))
         f.write('Sign-Opt: detail perturbation ratio are: {}\n'.format(perturbation_ratio))
     '''
