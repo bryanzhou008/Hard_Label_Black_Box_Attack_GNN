@@ -16,6 +16,7 @@ import torch_geometric
 from torch_geometric.utils import to_networkx, from_networkx
 import matplotlib.pyplot as plt
 from test import distance
+import community.community_louvain
 
 def L0_norm(theta, device):
     theta[theta==float('inf')]=1
@@ -101,7 +102,8 @@ class OPT_attack_sign_SGD(object):
         num_query = 0
         num_nodes = x0.num_nodes
         G = to_networkx(x0, to_undirected=True) #tansfer from PyG data to networkx
-        partition = community.best_partition(G) #decompose G into clusters
+        partition = community.community_louvain.best_partition(G)
+        # partition = community.best_partition(G) #decompose G into clusters
         num_cluster = len(list(set(partition.values())))
         cluster = {}
         for i in range(num_cluster):
@@ -140,8 +142,8 @@ class OPT_attack_sign_SGD(object):
                                     final_theta[nodes[p], nodes[q]] = theta[p, q]
                                     final_theta[nodes[q], nodes[p]] = theta[p, q]   
                     num_query += 1   
-        
-        ##perturbations between clusters
+
+        #perturbations between clusters
         if (num_cluster > 1) and (flag_inner == 0):
             for i in range(num_cluster - 1):
                 for j in range(i+1, num_cluster):
@@ -225,14 +227,27 @@ class OPT_attack_sign_SGD(object):
         model.eval()
         query_count = 0
         
-        if (model.predict(x0, self.device) != y0):
-            print("Fail to classify the graph. No need to attack.")
-            return x0, y0, 1, False, 0
+        # this part has been commented:
+        #-----------------------------------------------------------------------
+        # if (model.predict(x0, self.device) != y0):
+        #     print("Fail to classify the graph. No need to attack.")
+        #     return x0, y0, 1, False, 0
+        #-----------------------------------------------------------------------
 
         if seed is not None:
             np.random.seed(seed)
 
         G0 = to_networkx(x0, to_undirected=True)
+        # this part is added:
+        #-----------------------------------------------------------------------
+        # G0.add_nodes_from([2, 3])
+        # G0.add_nodes_from([2, 3, 4, 5])
+
+
+
+
+
+        #-----------------------------------------------------------------------
         time_start = time()
         initial_theta, inital_F, initial_g, num_query, search_type = self.initial_search(x0, y0)
         
@@ -313,6 +328,11 @@ class OPT_attack_sign_SGD(object):
         target = model.predict(x_final, self.device)
         time_end = time()
         print("Attack succeed: distortion %.4f perturbation %d queries %d \nTime: %.4f seconds" % (F_theta.item(), L0_norm(g_theta*theta,self.device).item(), query_count, time_end-time_start))
+
+        # added:
+        print(x_final.edge_index)
+
+
         return x_final, target, query_count, True, F_theta.item(), init
 
     def sign_grad_v1(self, x0, y0, theta, initial_F,initial_g, h=0.1):

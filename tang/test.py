@@ -150,14 +150,24 @@ if __name__ == '__main__':
     detect_test_normal = []
     detect_test_advers = []
 
+    # this part is added:
+    #-----------------------------------------------------------------------
+    num_success = 0
+    num_success_via_injection = 0
+    #-----------------------------------------------------------------------
+
     num_add_edge, num_delete_edge = [], []
     for i in range(num_test):
+
+        print("\n \n \n \n \n \n \n \n")
+
         print('begin to attack instance {}'.format(i))
         x0 = test_dataset[i].to(device)
 
 
         # this part is added:
         #-----------------------------------------------------------------------
+        # print("\n \n \n \n \n")
         print("---------------------------instance",i,"basic info-----------------------------------")
         print("x0 before node injection is:", x0)
         print("the information in x0 is:", x0.x)
@@ -169,6 +179,12 @@ if __name__ == '__main__':
 
 
 
+        #-----------------------------------------------------------------------
+        y0 = x0.y[0]
+        y1 = model.predict(x0, device)
+        #-----------------------------------------------------------------------
+
+
 
 
         x0 = inject_node(x0, initialization=args.initialization, num_inject=max(1, int(x0.num_nodes*args.injection_percentage)))
@@ -178,29 +194,50 @@ if __name__ == '__main__':
         print("nodes after injection:",list(G1.nodes))
         print("edges after injection:",list(G1.edges))
         print("the information in G1 is:", G1.nodes.data())
+
+
+        print("x0 edge index is:",x0.edge_index)
         
         #-----------------------------------------------------------------------
 
 
-        y0 = x0.y[0]
-        y1 = model.predict(x0, device)
-
+        y2 = model.predict(x0, device)
 
 
         # this part is added:
         #-----------------------------------------------------------------------
 
+
         print("the correct result y0 should be:", y0.item())
         print("the prediction result y1 is:", y1.item())
         print("-----------------------------------------------------------------------------------")
+
+        '''
+        please note here that y0 is the ground truth label for graph x0, y1 is the model prediction for x0 without any add-ons,
+        y2 is the model prediction for x0 when nodes are inserted but no edge purturbations are in place
+        we commence edge attack only when y2 != y0
+        '''
+
+        if(y0 == y1 and y0 != y2):
+            num_success_via_injection += 1
+            print("case {i} is purturbed via node injection and without edge purturbation")
+
+
 
         #-----------------------------------------------------------------------
 
         num_nodes = x0.num_nodes
         space = num_nodes * (num_nodes - 1) / 2
-        if y0 == y1:
+        if y0 == y2:
             time_start = time()
             adv_x0, adv_y0, query, success, dis, init = attacker.attack_untargeted(x0, y0, query_limit=args.max_query)
+            # this part is added:
+            #-----------------------------------------------------------------------
+            print("before adv attack, the model predicts:", y0.item())
+            print("after adv attack, the model predicts:", adv_y0.item())
+            if y0 != adv_y0:
+                num_success += 1
+            #-----------------------------------------------------------------------
             time_end = time()
             init_num_query.append(init[2])
             num_query.append(query)
@@ -259,18 +296,27 @@ if __name__ == '__main__':
             init_perturbation_ratio.append(0)
 
     
-    print('{} instances don\'t need to be attacked'.format(no_need_count))
-    '''
-    success_ratio = success_count / (num_test - no_need_count)*100
-    avg_perturbation = sum(perturbation) / success_count
-    print("Sign-Opt: the success rate of black-box attack is {}/{} = {:.4f}".format(success_count,num_test-no_need_count, success_ratio))
+        # this part is changed:
+        # -----------------------------------------------------------------------
+        print(f"attack loop: success in {num_success} out of {i+1} instances, with {no_need_count} instances no need to attack, and {num_success_via_injection} cases attacked with only node injection and no edge purturbation")
+        print('{} instances don\'t need to be attacked'.format(no_need_count))
+    
+    
+
+
+    success_ratio = num_success / (num_test - no_need_count)*100
+    avg_perturbation = sum(perturbation) / num_success
+    print("Sign-Opt: the success rate of black-box attack is {}/{} = {:.4f}".format(num_success,num_test-no_need_count, success_ratio))
     print('Sign-Opt: the average perturbation is {:.4f}'.format(avg_perturbation))
-    print('Sign-Opt: the average perturbation ratio is {:.4f}'.format(sum(perturbation_ratio) / success_count*100))
+    print('Sign-Opt: the average perturbation ratio is {:.4f}'.format(sum(perturbation_ratio) / num_success*100))
     print('Sign-Opt: the average query count is {:.4f}'.format(sum(num_query)/(num_test-no_need_count)))
     print('Sign-Opt: the average attacking time is {:.4f}'.format(sum(attack_time)/(num_test-no_need_count)))
-    print('Sign-Opt: the average distortion is {:.4f}'.format(sum(distortion)/success_count))
+    print('Sign-Opt: the average distortion is {:.4f}'.format(sum(distortion)/num_success))
     print('dataset: {}'.format(dataset_name))
-    '''
+
+    # -----------------------------------------------------------------------
+
+
     if args.search == 1 and args.effective == 1 and args.id ==1: 
         detect_test_path = './defense/'+dataset_name+'_'+model_name+'_Our_'
         torch.save(detect_test_normal, detect_test_path+'test_normal.pt')
