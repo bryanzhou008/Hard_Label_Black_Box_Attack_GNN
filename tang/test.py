@@ -33,7 +33,7 @@ def inject_node(x, num_inject, initialization="zero", Gaussian_mean=0, Gaussian_
         print(f"Unsupported Initialization method: {initialization}")
         exit()
     # inject new nodes into x
-    x.x = torch.cat((x.x, torch.tensor([injected_feature.cpu().numpy() for i in range(num_inject)]).cuda()))
+    x.x = torch.cat((x.x, torch.tensor(np.array([injected_feature.cpu().numpy() for i in range(num_inject)])).cuda()))
     x.num_nodes = len(x.x)
     return x
 
@@ -134,6 +134,8 @@ if __name__ == '__main__':
     perturbation = [] #perturbation for each poisoned graph
     perturbation_ratio = [] #perturbation ratio for each poisoned graph
 
+    Dangling_injection_count = 0
+
     no_need_count = 0
     num_query = []    
     fail_count = 0
@@ -170,10 +172,11 @@ if __name__ == '__main__':
         # print("\n \n \n \n \n")
         print("---------------------------instance",i,"basic info-----------------------------------")
         print("x0 before node injection is:", x0)
+        print("number of nodes before: ", len(x0.x))
         # print("the information in x0 is:", x0.x)
 
         G0 = to_networkx(x0, to_undirected=True)
-        print("nodes before injection:",list(G0.nodes))
+        # print("nodes before injection:",list(G0.nodes))
         print("edges before injection:",list(G0.edges))
         # print("the information in G0 is:", G0.nodes.data())
 
@@ -187,13 +190,14 @@ if __name__ == '__main__':
 
 
         # inject node
-        num_inject_node = max(1, int(x0.num_nodes*args.injection_percentage))
-        x0 = inject_node(x0, initialization=args.initialization, num_inject=num_inject_node)
+        num_injected = max(1, int(x0.num_nodes*args.injection_percentage))
+        x0 = inject_node(x0, initialization=args.initialization, num_inject=num_injected)
         print("x0 after node injection is:", x0)
-        # print("the information in x0 is:", x0.x)
+        print("number of nodes after: ", len(x0.x))
         G1 = to_networkx(x0, to_undirected=True)
-        print("nodes after injection:",list(G1.nodes))
-        print("edges after injection:",list(G1.edges))
+        # print("the information in x0 is:", x0.x)
+        # print("nodes after injection:",list(G1.nodes))
+        # print("edges after injection:",list(G1.edges))
         # print("the information in G1 is:", G1.nodes.data())
 
 
@@ -210,8 +214,8 @@ if __name__ == '__main__':
 
 
         print("the ground truth y0 is:", y0.item())
-        print("the prediction result y1 is:", y1.item())
-        print("-----------------------------------------------------------------------------------")
+        print("the model predict y1 is:", y1.item())
+        print("\n-----------------------------------------------------------------------------------")
 
         '''
         please note here that y0 is the ground truth label for graph x0, y1 is the model prediction for x0 without any add-ons,
@@ -219,9 +223,7 @@ if __name__ == '__main__':
         we commence edge attack only when y2 != y0
         '''
 
-        if(y0 == y1 and y0 != y2):
-            num_success_via_injection += 1
-            print("case {i} is purturbed via node injection and without edge purturbation")
+        
 
 
 
@@ -230,18 +232,29 @@ if __name__ == '__main__':
         num_nodes = x0.num_nodes
         space = num_nodes * (num_nodes - 1) / 2
 
-        # after injection, prediction y2 is still correct
-        if y0 == y2:
+        # model predicts correctly before node injection
+        if y0 == y1: 
+          # after injection, prediction is already wrong
+          if y0 != y2: 
+            num_success_via_injection += 1
+            print("instance {} is successfully attacked via node injection.".format(i))
+
+          # after injection, prediction y2 is still correct
+          elif y0 == y2: 
             time_start = time()
-            adv_x0, adv_y0, query, success, dis, init = attacker.attack_untargeted(x0, y0, query_limit=args.max_query)
-            # this part is added:
-            #-----------------------------------------------------------------------
+            # attack the model
+            adv_x0, adv_y0, query, success, dis, init, is_injected_nodes_dangling = attacker.attack_untargeted(x0, y0, num_injected, query_limit=args.max_query)
+            
             print("before adv attack, the model predicts:", y0.item())
             print("after adv attack, the model predicts:", adv_y0.item())
-            # successfully changed the prediction
+            
+            if is_injected_nodes_dangling:
+              Dangling_injection_count += 1
+
+            # if successfully changed the prediction
             if y0 != adv_y0:
                 num_success += 1
-            #-----------------------------------------------------------------------
+            
             time_end = time()
             init_num_query.append(init[2])
             num_query.append(query)
@@ -283,7 +296,9 @@ if __name__ == '__main__':
                 perturbation.append(-1)
                 perturbation_ratio.append(-1)
                 distortion.append(-1) 
-        else:
+
+        # y0 != y1 the model prediction is wrong
+        else: 
             print('instance {} is wrongly classified, No Need to Attack'.format(i))
             no_need_count += 1
             num_query.append(0)
@@ -302,10 +317,11 @@ if __name__ == '__main__':
     
         # this part is changed:
         # -----------------------------------------------------------------------
-        print(f"attack loop: \
-        \nsuccess in {num_success} out of {i+1} instances, with \
-        \n{no_need_count} instances no need to attack, and \
-        \n{num_success_via_injection} cases attacked with only node injection and no edge perturbation")
+        print(f"\nattack loop: \
+        \n\t {num_success} out of {i+1} instance success rate, \
+        \n\t {Dangling_injection_count} out of {num_success} has dangling injected nodes \
+        \n\t {no_need_count} instances need no attack, \
+        \n\t {num_success_via_injection} instances successed with only node injection")
     
     
 

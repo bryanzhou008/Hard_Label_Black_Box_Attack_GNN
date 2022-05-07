@@ -214,7 +214,7 @@ class OPT_attack_sign_SGD(object):
         #print("Attack succeed: distortion %.4f perturbation %d queries %d \nTime: %.4f seconds" % (g_theta.item(), L0_norm(g_theta*theta,self.device).item(), query_count, time_end-time_start))
         return x_final, target, query_count, True, initial_g.item()
 
-    def attack_untargeted(self, x0, y0, alpha = 0.2, beta = 0.005, iterations = 1000, query_limit=20000,
+    def attack_untargeted(self, x0, y0, num_node_injected, alpha = 0.2, beta = 0.005, iterations = 1000, query_limit=20000,
                           seed=None):
         #this is untargeted attack to GNN model
         #outputs: adv_x, adv_y, num_query, success, g_theta
@@ -238,16 +238,7 @@ class OPT_attack_sign_SGD(object):
             np.random.seed(seed)
 
         G0 = to_networkx(x0, to_undirected=True)
-        # this part is added:
-        #-----------------------------------------------------------------------
-        # G0.add_nodes_from([2, 3])
-        # G0.add_nodes_from([2, 3, 4, 5])
 
-
-
-
-
-        #-----------------------------------------------------------------------
         time_start = time()
         initial_theta, inital_F, initial_g, num_query, search_type = self.initial_search(x0, y0)
         
@@ -320,20 +311,55 @@ class OPT_attack_sign_SGD(object):
                break
             
             if (i+1)% 5 == 0:
-                print("Iteration %3d distortion %.4f  pertubation %.2f  num_queries %d" % (i+1, F_theta.item(), L0_norm(g_theta*theta,self.device).item(), query_count))
+                print("Iteration %3d, distortion %.4f, pertubation %.2f, num_queries %d" % (i+1, F_theta.item(), L0_norm(g_theta*theta,self.device).item(), query_count))
 
         G_final = new_graph(G0, torch.clamp(g_theta * theta, 0.0, 1.0))
         x_final = copy.deepcopy(x0).to(self.device)
         x_final.edge_index = from_networkx(G_final).to(self.device).edge_index.long()
         target = model.predict(x_final, self.device)
         time_end = time()
-        print("Attack succeed: distortion %.4f perturbation %d queries %d \nTime: %.4f seconds" % (F_theta.item(), L0_norm(g_theta*theta,self.device).item(), query_count, time_end-time_start))
+        print("\nAttack completed: distortion %.4f, perturbation %d, num_queries %d, \nTime: %.4f seconds \n" % (F_theta.item(), L0_norm(g_theta*theta,self.device).item(), query_count, time_end-time_start))
 
-        # added:
-        print(x_final.edge_index)
-        # print(list(to_networkx(x_final, to_undirected=True).edges))
+        # Output the edge perturbation
+        old_edges = list(G0.edges)
+        new_edges = list(G_final.edges)
+        
+        edge_created = []
+        edge_from_injected_node = []
+        for e in new_edges:
+            if e not in old_edges:
+                edge_created.append(e)
+                num_nodes = len(x_final.x)
+                if (num_nodes - num_node_injected <= e[0] < num_nodes
+                or num_nodes - num_node_injected <= e[1] < num_nodes):
+                  edge_from_injected_node.append(e)
 
-        return x_final, target, query_count, True, F_theta.item(), init
+        edge_removed = []
+        for e in old_edges:
+            if e not in new_edges:
+                edge_removed.append(e)
+
+        num_edge_created = len(edge_created)
+        num_edge_removed = len(edge_removed)
+        num_edge_from_injected = len(edge_from_injected_node)
+        
+        is_injected_nodes_dangling = False
+        if num_edge_from_injected == 0:
+          is_injected_nodes_dangling = True
+
+        if num_edge_created == 0:
+          print("No edge added.")
+        else:
+          print("%d of %d Edges added are with injected node: " % (num_edge_from_injected, num_edge_created))
+          print(edge_created)
+        if num_edge_removed == 0:
+          print("No edge removed.")
+        else:
+          print("%d Edges removed: " % (num_edge_removed))
+          print(edge_removed)
+        print("")
+
+        return x_final, target, query_count, True, F_theta.item(), init, is_injected_nodes_dangling
 
     def sign_grad_v1(self, x0, y0, theta, initial_F,initial_g, h=0.1):
         """
