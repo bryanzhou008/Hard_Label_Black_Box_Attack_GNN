@@ -331,7 +331,7 @@ class OPT_attack_sign_SGD(object):
 
         # added:
         print(x_final.edge_index)
-
+        # print(list(to_networkx(x_final, to_undirected=True).edges))
 
         return x_final, target, query_count, True, F_theta.item(), init
 

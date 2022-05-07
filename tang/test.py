@@ -170,12 +170,12 @@ if __name__ == '__main__':
         # print("\n \n \n \n \n")
         print("---------------------------instance",i,"basic info-----------------------------------")
         print("x0 before node injection is:", x0)
-        print("the information in x0 is:", x0.x)
+        # print("the information in x0 is:", x0.x)
 
         G0 = to_networkx(x0, to_undirected=True)
         print("nodes before injection:",list(G0.nodes))
         print("edges before injection:",list(G0.edges))
-        print("the information in G0 is:", G0.nodes.data())
+        # print("the information in G0 is:", G0.nodes.data())
 
 
 
@@ -186,17 +186,17 @@ if __name__ == '__main__':
 
 
 
-
+        # inject node
         x0 = inject_node(x0, initialization=args.initialization, num_inject=max(1, int(x0.num_nodes*args.injection_percentage)))
         print("x0 after node injection is:", x0)
-        print("the information in x0 is:", x0.x)
+        # print("the information in x0 is:", x0.x)
         G1 = to_networkx(x0, to_undirected=True)
         print("nodes after injection:",list(G1.nodes))
         print("edges after injection:",list(G1.edges))
-        print("the information in G1 is:", G1.nodes.data())
+        # print("the information in G1 is:", G1.nodes.data())
 
 
-        print("x0 edge index is:",x0.edge_index)
+        # print("x0 edge index is:",x0.edge_index)
         
         #-----------------------------------------------------------------------
 
@@ -208,7 +208,7 @@ if __name__ == '__main__':
         #-----------------------------------------------------------------------
 
 
-        print("the correct result y0 should be:", y0.item())
+        print("the ground truth y0 is:", y0.item())
         print("the prediction result y1 is:", y1.item())
         print("-----------------------------------------------------------------------------------")
 
@@ -228,6 +228,8 @@ if __name__ == '__main__':
 
         num_nodes = x0.num_nodes
         space = num_nodes * (num_nodes - 1) / 2
+
+        # after injection, prediction y2 is still correct
         if y0 == y2:
             time_start = time()
             adv_x0, adv_y0, query, success, dis, init = attacker.attack_untargeted(x0, y0, query_limit=args.max_query)
@@ -235,6 +237,7 @@ if __name__ == '__main__':
             #-----------------------------------------------------------------------
             print("before adv attack, the model predicts:", y0.item())
             print("after adv attack, the model predicts:", adv_y0.item())
+            # successfully changed the prediction
             if y0 != adv_y0:
                 num_success += 1
             #-----------------------------------------------------------------------
@@ -298,8 +301,10 @@ if __name__ == '__main__':
     
         # this part is changed:
         # -----------------------------------------------------------------------
-        print(f"attack loop: success in {num_success} out of {i+1} instances, with {no_need_count} instances no need to attack, and {num_success_via_injection} cases attacked with only node injection and no edge purturbation")
-        print('{} instances don\'t need to be attacked'.format(no_need_count))
+        print(f"attack loop: \
+        \nsuccess in {num_success} out of {i+1} instances, with \
+        \n{no_need_count} instances no need to attack, and \
+        \n{num_success_via_injection} cases attacked with only node injection and no edge perturbation")
     
     
 
