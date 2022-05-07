@@ -187,7 +187,8 @@ if __name__ == '__main__':
 
 
         # inject node
-        x0 = inject_node(x0, initialization=args.initialization, num_inject=max(1, int(x0.num_nodes*args.injection_percentage)))
+        num_inject_node = max(1, int(x0.num_nodes*args.injection_percentage))
+        x0 = inject_node(x0, initialization=args.initialization, num_inject=num_inject_node)
         print("x0 after node injection is:", x0)
         # print("the information in x0 is:", x0.x)
         G1 = to_networkx(x0, to_undirected=True)
