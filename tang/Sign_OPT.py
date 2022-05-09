@@ -121,49 +121,49 @@ class OPT_attack_sign_SGD(object):
         final_theta = torch.clamp(final_theta, 0.0, 0.5)
         search_type = -1       
         
-        #inner cluster perturbation
-        for i in range(num_cluster):
-            nodes = cluster[i]
-            num_cluster_nodes = len(nodes)
-            if num_cluster_nodes > 1:
-                for j in range(10*num_cluster_nodes): #search initial directions 
-                    theta = torch.normal(mean=torch.rand(1).item(),std=0.5,size=(num_cluster_nodes,num_cluster_nodes)).to(self.device)
-                    theta = torch.triu(theta, diagonal=1).to(device)
-                    G_new = new_graph(G, theta, index1=nodes)
-                    x_new.edge_index = from_networkx(G_new).to(device).edge_index.long()
-                    if model.predict(x_new, device) != y0:  #we find a direction
-                        F_lbd = distance(x_new, x0)
-                        if F_lbd < F_theta:
-                            F_theta = F_lbd
-                            flag_inner = 1
-                            search_type = 0
-                            for p in range(num_cluster_nodes-1):
-                                for q in range(p+1, num_cluster_nodes):
-                                    final_theta[nodes[p], nodes[q]] = theta[p, q]
-                                    final_theta[nodes[q], nodes[p]] = theta[p, q]   
-                    num_query += 1   
+        # #inner cluster perturbation
+        # for i in range(num_cluster):
+        #     nodes = cluster[i]
+        #     num_cluster_nodes = len(nodes)
+        #     if num_cluster_nodes > 1:
+        #         for j in range(10*num_cluster_nodes): #search initial directions 
+        #             theta = torch.normal(mean=torch.rand(1).item(),std=0.5,size=(num_cluster_nodes,num_cluster_nodes)).to(self.device)
+        #             theta = torch.triu(theta, diagonal=1).to(device)
+        #             G_new = new_graph(G, theta, index1=nodes)
+        #             x_new.edge_index = from_networkx(G_new).to(device).edge_index.long()
+        #             if model.predict(x_new, device) != y0:  #we find a direction
+        #                 F_lbd = distance(x_new, x0)
+        #                 if F_lbd < F_theta:
+        #                     F_theta = F_lbd
+        #                     flag_inner = 1
+        #                     search_type = 0
+        #                     for p in range(num_cluster_nodes-1):
+        #                         for q in range(p+1, num_cluster_nodes):
+        #                             final_theta[nodes[p], nodes[q]] = theta[p, q]
+        #                             final_theta[nodes[q], nodes[p]] = theta[p, q]   
+        #             num_query += 1   
 
-        #perturbations between clusters
-        if (num_cluster > 1) and (flag_inner == 0):
-            for i in range(num_cluster - 1):
-                for j in range(i+1, num_cluster):
-                    nodes1, nodes2 = cluster[i], cluster[j]
-                    num_cluster_nodes1, num_cluster_nodes2 = len(nodes1), len(nodes2)
-                    for k in range(10*(num_cluster_nodes1+num_cluster_nodes2)):
-                        theta = torch.normal(mean=torch.rand(1).item(), std=0.5, size=(num_cluster_nodes1,num_cluster_nodes2)).to(self.device)
-                        G_new = new_graph(G, theta, nodes1, nodes2)
-                        x_new.edge_index = from_networkx(G_new).to(device).edge_index.long()
-                        if model.predict(x_new, device) != y0:
-                            F_lbd = distance(x_new, x0)
-                            if F_lbd < F_theta:  
-                                F_theta = F_lbd
-                                flag_outer = 1
-                                search_type = 1
-                                for p in range(num_cluster_nodes1):
-                                    for q in range(num_cluster_nodes2):
-                                        final_theta[nodes1[p], nodes2[q]] = theta[p, q]     
-                                        final_theta[nodes2[q], nodes1[p]] = theta[p, q]     
-                        num_query += 1   
+        # #perturbations between clusters
+        # if (num_cluster > 1) and (flag_inner == 0):
+        #     for i in range(num_cluster - 1):
+        #         for j in range(i+1, num_cluster):
+        #             nodes1, nodes2 = cluster[i], cluster[j]
+        #             num_cluster_nodes1, num_cluster_nodes2 = len(nodes1), len(nodes2)
+        #             for k in range(10*(num_cluster_nodes1+num_cluster_nodes2)):
+        #                 theta = torch.normal(mean=torch.rand(1).item(), std=0.5, size=(num_cluster_nodes1,num_cluster_nodes2)).to(self.device)
+        #                 G_new = new_graph(G, theta, nodes1, nodes2)
+        #                 x_new.edge_index = from_networkx(G_new).to(device).edge_index.long()
+        #                 if model.predict(x_new, device) != y0:
+        #                     F_lbd = distance(x_new, x0)
+        #                     if F_lbd < F_theta:  
+        #                         F_theta = F_lbd
+        #                         flag_outer = 1
+        #                         search_type = 1
+        #                         for p in range(num_cluster_nodes1):
+        #                             for q in range(num_cluster_nodes2):
+        #                                 final_theta[nodes1[p], nodes2[q]] = theta[p, q]     
+        #                                 final_theta[nodes2[q], nodes1[p]] = theta[p, q]     
+        #                 num_query += 1   
         
         #perturbations on the whole graph
         if (flag_inner == 0) and (flag_outer == 0):

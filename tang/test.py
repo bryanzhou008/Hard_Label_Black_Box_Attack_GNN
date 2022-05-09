@@ -16,8 +16,9 @@ from time import time
 
 # this part is added:
 #-----------------------------------------------------------------------
-def inject_node(x, num_inject, initialization="zero", Gaussian_mean=0, Gaussian_std=1):
+def inject_node(x, num_inject, initialization="node_mean", Gaussian_mean=0, Gaussian_std=1):
     # exception check
+    print(f"Initialization: {initialization}")
     assert initialization!="random" or (initialization=="random" and Gaussian_mean and Gaussian_std)
     node_feature_dim = x.x.shape[1]
     injected_feature = torch.zeros(node_feature_dim)
@@ -50,7 +51,7 @@ def get_args():
 
     # this part is added:
     #-----------------------------------------------------------------------
-    parser.add_argument('--initialization', type=str, default='zero')
+    parser.add_argument('--initialization', type=str, default='node_mean')
     parser.add_argument('--injection_percentage', type=float, default='0.1')
     
     #-----------------------------------------------------------------------
@@ -237,6 +238,7 @@ if __name__ == '__main__':
           # after injection, prediction is already wrong
           if y0 != y2: 
             num_success_via_injection += 1
+            num_success += 1
             print("instance {} is successfully attacked via node injection.".format(i))
 
           # after injection, prediction y2 is still correct
@@ -318,7 +320,7 @@ if __name__ == '__main__':
         # this part is changed:
         # -----------------------------------------------------------------------
         print(f"\nattack loop: \
-        \n\t {num_success} out of {i+1} instance success rate, \
+        \n\t {num_success} out of {i+1 - no_need_count} instance success rate, \
         \n\t {Dangling_injection_count} out of {num_success} has dangling injected nodes \
         \n\t {no_need_count} instances need no attack, \
         \n\t {num_success_via_injection} instances successed with only node injection")
