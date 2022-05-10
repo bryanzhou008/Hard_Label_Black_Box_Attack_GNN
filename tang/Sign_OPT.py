@@ -246,7 +246,7 @@ class OPT_attack_sign_SGD(object):
         time_end = time()
         if inital_F.item() == float('inf'):
             print("Couldn't find valid initial direction, failed")
-            return x0, y0, query_count, False, 0, (0,0,num_query,time_end-time_start,search_type)
+            return x0, y0, query_count, False, 0, (0,0,num_query,time_end-time_start,search_type), False
         #record the results in Stage 1
         initial_perturb = L0_norm(initial_g*initial_theta, self.device)
         init = (initial_perturb.item(), inital_F.item(), num_query, time_end-time_start, search_type)
