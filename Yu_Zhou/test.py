@@ -13,20 +13,40 @@ from torch_geometric.utils import to_networkx, from_networkx
 import torch_geometric.transforms as T
 from Gin import GIN, SAG, GUNet
 from time import time
+import random
+from collections import Counter
 
 # this part is added:
 #-----------------------------------------------------------------------
-def inject_node(x, num_inject, initialization="zero", Gaussian_mean=0, Gaussian_std=1):
-    # exception check
-    assert initialization!="random" or (initialization=="random" and Gaussian_mean and Gaussian_std)
+def my_mode(sample):
+    c = Counter(sample)
+    return [k for k, v in c.items() if v == c.most_common(1)[0][1]][0]
+
+
+
+
+def inject_node(x, num_inject, initialization, connection):
+
+
+
+    # print("Edge Attributes are:",x.edge_attr)
+
     node_feature_dim = x.x.shape[1]
     injected_feature = torch.zeros(node_feature_dim)
+    num_nodes_before_injection = x.num_nodes
+
     if initialization == "zero":
         pass
     elif initialization == "one":
         injected_feature = torch.ones(node_feature_dim)
     elif initialization == "random":
-        injected_feature = torch.empty(node_feature_dim).normal_(mean=Gaussian_mean, std=Gaussian_std)
+        Gaussian_mean = torch.mean(x.x, dim=0)
+        Gaussian_std = torch.std(x.x,dim=0)
+        # injected_feature = torch.empty(node_feature_dim).normal_(mean=Gaussian_mean, std=Gaussian_std)
+        injected_feature = torch.empty(node_feature_dim)
+        injected_feature[0].normal_(mean=Gaussian_mean[0].item(), std=Gaussian_std[0].item())
+        injected_feature[1].normal_(mean=Gaussian_mean[1].item(), std=Gaussian_std[1].item())
+        # print(injected_feature)
     elif initialization == "node_mean":
         injected_feature = torch.mean(x.x, dim=0)
     else:
@@ -35,10 +55,51 @@ def inject_node(x, num_inject, initialization="zero", Gaussian_mean=0, Gaussian_
     # inject new nodes into x
     x.x = torch.cat((x.x, torch.tensor([injected_feature.cpu().numpy() for i in range(num_inject)]).cuda()))
     x.num_nodes = len(x.x)
+
+
+
+
+
+    # connect new nodes into x
+    if(connection == "no_connection"):
+        pass
+    elif(connection == "random"):
+        for i in range(num_inject):
+            node_number = i+num_nodes_before_injection
+            random_node = random.randint(0,num_nodes_before_injection-1)
+
+            new_edge_back = torch.tensor([[node_number],[random_node]]).cuda()
+            new_edge_front = torch.tensor([[random_node],[node_number]]).cuda()
+
+            x.edge_index = torch.cat((new_edge_front, x.edge_index, new_edge_back),1)
+            if(x.edge_attr is not None):
+                x.edge_attr = torch.cat((x.edge_attr, torch.tensor([[0.,1.],[0.,1.]]).cuda()),0)
+            
+    elif(connection == "mode"):
+        for i in range(num_inject):
+            node_number = i+num_nodes_before_injection
+            mode_node = my_mode(x.edge_index[0].tolist())
+
+            new_edge_back = torch.tensor([[node_number],[mode_node]]).cuda()
+            new_edge_front = torch.tensor([[mode_node],[node_number]]).cuda()
+
+            x.edge_index = torch.cat((new_edge_front, x.edge_index, new_edge_back),1)
+
+            if(x.edge_attr is not None):
+                x.edge_attr = torch.cat((x.edge_attr, torch.tensor([[0.,1.],[0.,1.]]).cuda()),0)
+    else:
+        print(f"Unsupported Connection method: {connection}")
+        exit()
+
+    x.num_edges = x.num_edges + num_inject
+
+    
     return x
 
-
-
+ # n = to_networkx(x, node_attrs=x.x, edge_attrs=x.edge_attr, to_undirected=True)
+ # n = to_networkx(x, to_undirected=True)
+ # n.add_edge(node_number, mode_node)
+ # x = from_networkx(n)
 
 
 #-----------------------------------------------------------------------
@@ -52,6 +113,9 @@ def get_args():
     #-----------------------------------------------------------------------
     parser.add_argument('--initialization', type=str, default='zero')
     parser.add_argument('--injection_percentage', type=float, default='0.1')
+    parser.add_argument('--injection_number', type=int, default='-1')
+    parser.add_argument('--connection', type=str, default='no_connection')
+
     
     #-----------------------------------------------------------------------
 
@@ -95,6 +159,9 @@ if __name__ == '__main__':
     dropout = args.dropout
     model_path = args.model_path
     model_name = args.model
+    injection_number = args.injection_number
+    initialization = args.initialization
+    connection = args.connection
     
     if dataset_name in TUD.keys():
         degree_as_attr = TUD[dataset_name]
@@ -116,6 +183,7 @@ if __name__ == '__main__':
     output_dim = dataset.num_classes
     print('input dim: ', input_dim)
     print('output dim: ', output_dim)
+    print("\n \n \n")
     if model_name=='SAG':
         model = SAG(5,input_dim,hidden_dim,output_dim,0.8,dropout).to(device)
         load_path = model_path + '{}_{}.pt'.format(dataset_name, model_name)
@@ -157,25 +225,39 @@ if __name__ == '__main__':
     #-----------------------------------------------------------------------
 
     num_add_edge, num_delete_edge = [], []
+
+
+    num_isolated_nodes = 0
+
+
     for i in range(num_test):
 
-        print("\n \n \n \n \n \n \n \n")
+        
 
-        print('begin to attack instance {}'.format(i))
+        # print('begin to attack instance {}'.format(i))
         x0 = test_dataset[i].to(device)
+        # print("x0 edge index is:",x0.edge_index)
+        # print("x0 edge index is:",x0.edge_index.t().contiguous())
+        
+        # print("Does x0 have any isolated nodes? --",x0.has_isolated_nodes())
+        # if(x0.has_isolated_nodes()):
+        #     num_isolated_nodes += 1
+        
 
 
         # this part is added:
         #-----------------------------------------------------------------------
         # print("\n \n \n \n \n")
         print("---------------------------instance",i,"basic info-----------------------------------")
-        print("x0 before node injection is:", x0)
-        print("the information in x0 is:", x0.x)
+        # print("x0 before node injection is:", x0)
+        # print("the information in x0 is:", x0.x)
 
         G0 = to_networkx(x0, to_undirected=True)
         print("nodes before injection:",list(G0.nodes))
         print("edges before injection:",list(G0.edges))
-        print("the information in G0 is:", G0.nodes.data())
+        # print("the information in G0 is:", G0.nodes.data())
+
+        print("x0 edge index is:",x0.edge_index)
 
 
 
@@ -186,15 +268,21 @@ if __name__ == '__main__':
 
 
 
+        # if num_inject not specified, then use percentage
+        if injection_number < 0:
+            x0 = inject_node(x0, initialization=initialization, num_inject=max(1, int(x0.num_nodes*args.injection_percentage)), connection = connection)
+        else:
+            x0 = inject_node(x0, initialization=initialization, num_inject = injection_number, connection = connection)
 
-        x0 = inject_node(x0, initialization=args.initialization, num_inject=max(1, int(x0.num_nodes*args.injection_percentage)))
-        print("x0 after node injection is:", x0)
-        print("the information in x0 is:", x0.x)
+
+
+
+        # print("x0 after node injection is:", x0)
+        # print("the information in x0 is:", x0.x)
         G1 = to_networkx(x0, to_undirected=True)
         print("nodes after injection:",list(G1.nodes))
         print("edges after injection:",list(G1.edges))
-        print("the information in G1 is:", G1.nodes.data())
-
+        # print("the information in G1 is:", G1.nodes.data())
 
         print("x0 edge index is:",x0.edge_index)
         
@@ -207,9 +295,10 @@ if __name__ == '__main__':
         # this part is added:
         #-----------------------------------------------------------------------
 
-
-        print("the correct result y0 should be:", y0.item())
-        print("the prediction result y1 is:", y1.item())
+        print("-----------------------------------------------------------------------------------")
+        print("Ground truth (y0):", y0.item())
+        print("Prediction before node injection (y1):", y1.item())
+        print("Prediction after node injection (y2):", y2.item())
         print("-----------------------------------------------------------------------------------")
 
         '''
@@ -217,18 +306,21 @@ if __name__ == '__main__':
         y2 is the model prediction for x0 when nodes are inserted but no edge purturbations are in place
         we commence edge attack only when y2 != y0
         '''
+        num_nodes = x0.num_nodes
+        space = num_nodes * (num_nodes - 1) / 2
 
+        
         if(y0 == y1 and y0 != y2):
             num_success_via_injection += 1
-            print("case {i} is purturbed via node injection and without edge purturbation")
+            print(f"case {i} is successfully attacked via node injection but without edge purturbation")
 
 
 
         #-----------------------------------------------------------------------
 
-        num_nodes = x0.num_nodes
-        space = num_nodes * (num_nodes - 1) / 2
-        if y0 == y2:
+        
+
+        elif(y0 == y1 and y0 == y2):
             time_start = time()
             adv_x0, adv_y0, query, success, dis, init = attacker.attack_untargeted(x0, y0, query_limit=args.max_query)
             # this part is added:
@@ -237,6 +329,9 @@ if __name__ == '__main__':
             print("after adv attack, the model predicts:", adv_y0.item())
             if y0 != adv_y0:
                 num_success += 1
+                print(f"case {i} is successfully attacked via node injection and edge purturbation")
+            else:
+                print(f"case {i} both attack methods failed")
             #-----------------------------------------------------------------------
             time_end = time()
             init_num_query.append(init[2])
@@ -280,7 +375,7 @@ if __name__ == '__main__':
                 perturbation_ratio.append(-1)
                 distortion.append(-1) 
         else:
-            print('instance {} is wrongly classified, No Need to Attack'.format(i))
+            print('instance {} is wrongly classified from the start, No Need to Attack'.format(i))
             no_need_count += 1
             num_query.append(0)
             attack_time.append(0)
@@ -298,15 +393,24 @@ if __name__ == '__main__':
     
         # this part is changed:
         # -----------------------------------------------------------------------
+        print("-----------------------------------------------------------------------------------")
         print(f"attack loop: success in {num_success} out of {i+1} instances, with {no_need_count} instances no need to attack, and {num_success_via_injection} cases attacked with only node injection and no edge purturbation")
-        print('{} instances don\'t need to be attacked'.format(no_need_count))
+        # print('{} instances don\'t need to be attacked'.format(no_need_count))
+        if (i+1 - no_need_count - num_success_via_injection)*100 != 0:
+            success_ratio = num_success / (i+1 - no_need_count - num_success_via_injection)*100
+            print("So far success ratio is:", success_ratio, "%")
+        print("\n \n \n \n \n \n \n \n")
     
     
 
+    
+    print("--------------------------Experiment Summary--------------------------")
+    Cases_Need_Attack = num_test - no_need_count
+    Cases_Need_Purturbation = num_test - no_need_count - num_success_via_injection
+    Purturbation_success_ratio = (num_success / Cases_Need_Purturbation) *100
 
-    success_ratio = num_success / (num_test - no_need_count)*100
     avg_perturbation = sum(perturbation) / num_success
-    print("Sign-Opt: the success rate of black-box attack is {}/{} = {:.4f}".format(num_success,num_test-no_need_count, success_ratio))
+    print("Sign-Opt: the Purturbation_success_ratio of black-box attack is {}/{} = {:.4f}".format(num_success,num_test - no_need_count - num_success_via_injection, Purturbation_success_ratio))
     print('Sign-Opt: the average perturbation is {:.4f}'.format(avg_perturbation))
     print('Sign-Opt: the average perturbation ratio is {:.4f}'.format(sum(perturbation_ratio) / num_success*100))
     print('Sign-Opt: the average query count is {:.4f}'.format(sum(num_query)/(num_test-no_need_count)))
@@ -373,4 +477,4 @@ if __name__ == '__main__':
         f.write('Sign-Opt: detail perturbation are: {}\n'.format(perturbation))
         f.write('Sign-Opt: detail perturbation ratio are: {}\n'.format(perturbation_ratio))
     '''
-    
+    # print("number of cases with isolated nodes is:",num_isolated_nodes)
