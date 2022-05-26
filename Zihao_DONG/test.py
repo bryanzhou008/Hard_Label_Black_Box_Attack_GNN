@@ -60,6 +60,8 @@ TUD = {'NCI1':0,'COIL-DEL':0,'IMDB-BINARY':1}
 if __name__ == '__main__':
 
     args = get_args()
+    print("Kwargs:")
+    print(args)
     dataset_name = args.dataset
     device = torch.device("cuda:"+str(args.device) if torch.cuda.is_available() else torch.device("cpu"))
     batch_size = args.batch_size
