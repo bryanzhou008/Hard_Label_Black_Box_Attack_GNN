@@ -209,7 +209,7 @@ if __name__ == '__main__':
     
     print('{} instances don\'t need to be attacked'.format(no_need_count))
     
-    success_ratio = num_success / (num_test - no_need_count)*100
+    success_ratio = (num_success + num_change_pred_after_inject_no_perturb) / (num_test - no_need_count)*100
     avg_perturbation = sum(perturbation) / num_success
     print("Sign-Opt: the success rate of black-box attack is {}/{} = {:.4f}".format(num_success,num_test-no_need_count, success_ratio))
     print("Sign-Opt: the average connected rate is {:.4f}".format(num_connect / (num_test-no_need_count)))
