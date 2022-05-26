@@ -23,9 +23,10 @@ def get_args():
     parser = argparse.ArgumentParser(description='Pytorch graph isomorphism network for graph classification')
     #these are parameters for attack model
     parser.add_argument('--node_injection', action='store_true')
+    parser.add_argument('--iterative', action='store_true')
     parser.add_argument('--injection_percentage', type=float, default=0.05)
     parser.add_argument('--initialization', type=str, default="node_mean")
-    parser.add_argument('--bin_search_depth', type=int, default=2000)
+    parser.add_argument('--connection', type=str, default="mode")
     parser.add_argument('--effective', type=int, default=1)
     parser.add_argument('--max_query', type=int, default=40000)
     parser.add_argument('--id', type= int, default=1)
@@ -122,6 +123,9 @@ if __name__ == '__main__':
 
     num_add_edge, num_delete_edge = [], []
     num_success = 0
+    num_change_pred_after_inject_no_perturb = 0
+    num_connect = 0
+    num_full_connect = 0
     for i in range(num_test):
         print('begin to attack instance {}'.format(i))
         x0 = test_dataset[i].to(device)
@@ -131,7 +135,7 @@ if __name__ == '__main__':
         space = num_nodes * (num_nodes - 1) / 2
         if y0 == y1:
             time_start = time()
-            adv_x0, adv_y0, query, success, dis, init = attacker.attack_untargeted(x0, y0, query_limit=args.max_query)
+            adv_x0, adv_y0, query, success, dis, init, connected, inject_num, backup = attacker.attack_untargeted(x0, y0, query_limit=args.max_query)
             if y0 != adv_y0:
                 num_success += 1
             time_end = time()
@@ -149,12 +153,12 @@ if __name__ == '__main__':
                 init_perturbation_ratio.append(init_ratio)
 
                 #process results in Stage 2
-                perturb = distance(adv_x0, x0)
+                perturb = distance(adv_x0, backup)
                 perturbation.append(perturb)
                 perturbation_ratio.append(perturb/space)
                 distortion.append(dis)
                 
-                add_edge, delete_edge = count_edges(adv_x0, x0)
+                add_edge, delete_edge = count_edges(adv_x0, backup)
                 num_delete_edge.append(delete_edge)
                 num_add_edge.append(add_edge)
 
@@ -163,8 +167,14 @@ if __name__ == '__main__':
                 #adv_x0.y = torch.tensor([1])
                 adv_x0.y = x0.y
                 detect_test_advers.append(adv_x0)
-                detect_test_normal.append(x0)
+                detect_test_normal.append(backup)
+
+                if connected != 0:
+                    num_connect += 1
+                if connected == inject_num:
+                    num_full_connect += 1
             else:
+                num_change_pred_after_inject_no_perturb += 1
                 detect_test_advers.append(x0)
                 detect_test_normal.append(x0)
                 init_distortion.append(-1)
@@ -192,6 +202,9 @@ if __name__ == '__main__':
             init_perturbation_ratio.append(0)
         
         print(f"attack loop: success in {num_success} out of {i+1} instances, with {no_need_count} instances no need to attack")
+        print(f"{num_change_pred_after_inject_no_perturb} instances prediction changed after node injection with no edge perturbation")
+        print(f"{num_connect} instances have new nodes injected into the original graph")
+        print(f"Out of which {num_full_connect} have all injected nodes connected to the graph")
 
     
     print('{} instances don\'t need to be attacked'.format(no_need_count))
@@ -199,6 +212,7 @@ if __name__ == '__main__':
     success_ratio = num_success / (num_test - no_need_count)*100
     avg_perturbation = sum(perturbation) / num_success
     print("Sign-Opt: the success rate of black-box attack is {}/{} = {:.4f}".format(num_success,num_test-no_need_count, success_ratio))
+    print("Sign-Opt: the average connected rate is {:.4f}".format(num_connect / (num_test-no_need_count)))
     print('Sign-Opt: the average perturbation is {:.4f}'.format(avg_perturbation))
     print('Sign-Opt: the average perturbation ratio is {:.4f}'.format(sum(perturbation_ratio) / num_success*100))
     print('Sign-Opt: the average query count is {:.4f}'.format(sum(num_query)/(num_test-no_need_count)))

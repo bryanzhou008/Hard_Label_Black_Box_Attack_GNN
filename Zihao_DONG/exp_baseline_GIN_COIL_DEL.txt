@@ -1,0 +1,3 @@
+input dim:  2
+output dim:  100
+begin to attack instance 0
