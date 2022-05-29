@@ -56,6 +56,7 @@ def inject_node(x, num_inject, initialization="zero"):
     # exception check
     # assert initialization!="random" or (initialization=="random" and Gaussian_mean and Gaussian_std)
     node_feature_dim = x.x.shape[1]
+    
     injected_feature = torch.zeros(node_feature_dim)
     num_nodes_before_injection = x.num_nodes
     if initialization == "zero":
@@ -77,6 +78,25 @@ def inject_node(x, num_inject, initialization="zero"):
     elif initialization == "node_mean":
         injected_feature = torch.mean(x.x, dim=0)
         x.x = torch.cat((x.x, torch.tensor([injected_feature.cpu().numpy() for i in range(num_inject)]).cuda()))
+    elif initialization == "mode":
+        container = []
+        for i in range(len(x.x)):
+            container.append(list(x.x[i]).index(1))
+        if not args.iterative:
+            cnt = Counter(container)
+            s = np.sum(list(cnt.values()))
+            p = [(cnt[i]/s) for i in range(0, len(cnt)-1)]
+            p.append(1-np.sum(p))
+            for i in range(num_inject):
+                m = np.random.choice(np.arange(0, len(cnt)), p=p)
+                injected_feature = torch.zeros(node_feature_dim)
+                injected_feature[m] = 1
+                x.x = torch.cat((x.x, torch.tensor([injected_feature.cpu().numpy()]).cuda()))
+        else:
+            m = my_mode(container)
+            injected_feature = torch.zeros(node_feature_dim)
+            injected_feature[m] = 1
+            x.x = torch.cat((x.x, torch.tensor([injected_feature.cpu().numpy() for i in range(num_inject)]).cuda()))
     else:
         print(f"Unsupported Initialization method: {initialization}")
         exit()

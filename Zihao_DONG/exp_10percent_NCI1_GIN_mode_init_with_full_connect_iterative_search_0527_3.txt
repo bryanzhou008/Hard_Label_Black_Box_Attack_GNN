@@ -1,0 +1,12 @@
+Kwargs:
+Namespace(batch_size=32, connection='mode', dataset='NCI1', device=0, dropout=0.5, effective=1, hidden_dim=64, id=1, initialization='mode', injection_percentage=0.1, iterative=True, max_query=40000, model='GIN', model_path='./trained_model/', node_injection=True, search=1)
+input dim:  37
+output dim:  2
+begin to attack instance 0
+Counter({2: 45, 1: 8, 0: 3, 4: 2})
+[2, 3, 8, 45]
+[0.05172413793103448, 0.13793103448275862, 0.7758620689655172, 0.034482758620689724]
+2
+tensor([0., 0., 1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+        0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
+        0.])
