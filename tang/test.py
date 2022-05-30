@@ -13,33 +13,77 @@ from torch_geometric.utils import to_networkx, from_networkx
 import torch_geometric.transforms as T
 from Gin import GIN, SAG, GUNet
 from time import time
+from collections import Counter
 
 # this part is added:
 #-----------------------------------------------------------------------
-def inject_node(x, num_inject, initialization="node_mean", Gaussian_mean=0, Gaussian_std=1):
-    # exception check
-    print(f"Initialization: {initialization}")
-    assert initialization!="random" or (initialization=="random" and Gaussian_mean and Gaussian_std)
+def my_mode(sample):
+    c = Counter(sample)
+    return [k for k, v in c.items() if v == c.most_common(1)[0][1]][0]
+
+
+def inject_node(x, num_inject, initialization, connection):
+
     node_feature_dim = x.x.shape[1]
     injected_feature = torch.zeros(node_feature_dim)
+    num_nodes_before_injection = x.num_nodes
+
     if initialization == "zero":
         pass
     elif initialization == "one":
         injected_feature = torch.ones(node_feature_dim)
     elif initialization == "random":
-        injected_feature = torch.empty(node_feature_dim).normal_(mean=Gaussian_mean, std=Gaussian_std)
+        Gaussian_mean = torch.mean(x.x, dim=0)
+        Gaussian_std = torch.std(x.x,dim=0)
+        # injected_feature = torch.empty(node_feature_dim).normal_(mean=Gaussian_mean, std=Gaussian_std)
+        injected_feature = torch.empty(node_feature_dim)
+        injected_feature[0].normal_(mean=Gaussian_mean[0].item(), std=Gaussian_std[0].item())
+        injected_feature[1].normal_(mean=Gaussian_mean[1].item(), std=Gaussian_std[1].item())
+        # print(injected_feature)
     elif initialization == "node_mean":
         injected_feature = torch.mean(x.x, dim=0)
     else:
         print(f"Unsupported Initialization method: {initialization}")
         exit()
     # inject new nodes into x
-    x.x = torch.cat((x.x, torch.tensor(np.array([injected_feature.cpu().numpy() for i in range(num_inject)])).cuda()))
+    x.x = torch.cat((x.x, torch.tensor([injected_feature.cpu().numpy() for i in range(num_inject)]).cuda()))
     x.num_nodes = len(x.x)
+
+    # connect new nodes into x
+    if(connection == "no_connection"):
+        pass
+    elif(connection == "random"):
+        for i in range(num_inject):
+            node_number = i+num_nodes_before_injection
+            random_node = random.randint(0,num_nodes_before_injection-1)
+
+            new_edge_back = torch.tensor([[node_number],[random_node]]).cuda()
+            new_edge_front = torch.tensor([[random_node],[node_number]]).cuda()
+
+            x.edge_index = torch.cat((new_edge_front, x.edge_index, new_edge_back),1)
+            if(x.edge_attr is not None):
+                x.edge_attr = torch.cat((x.edge_attr, torch.tensor([[0.,1.],[0.,1.]]).cuda()),0)
+            
+    elif(connection == "mode"):
+        for i in range(num_inject):
+            node_number = i+num_nodes_before_injection
+            mode_node = my_mode(x.edge_index[0].tolist())
+
+            new_edge_back = torch.tensor([[node_number],[mode_node]]).cuda()
+            new_edge_front = torch.tensor([[mode_node],[node_number]]).cuda()
+
+            x.edge_index = torch.cat((new_edge_front, x.edge_index, new_edge_back),1)
+
+            if(x.edge_attr is not None):
+                x.edge_attr = torch.cat((x.edge_attr, torch.tensor([[0.,1.],[0.,1.]]).cuda()),0)
+    else:
+        print(f"Unsupported Connection method: {connection}")
+        exit()
+
+    x.num_edges = x.num_edges + num_inject
+
+    
     return x
-
-
-
 
 
 #-----------------------------------------------------------------------
@@ -51,8 +95,10 @@ def get_args():
 
     # this part is added:
     #-----------------------------------------------------------------------
-    parser.add_argument('--initialization', type=str, default='node_mean')
-    parser.add_argument('--injection_percentage', type=float, default='0.1')
+    parser.add_argument('--initialization', type=str, default='zero')
+    parser.add_argument('--injection_percentage', type=float, default='0')
+    parser.add_argument('--injection_number', type=int, default='0')
+    parser.add_argument('--connection', type=str, default='no_connection')
     
     #-----------------------------------------------------------------------
 
@@ -96,6 +142,10 @@ if __name__ == '__main__':
     dropout = args.dropout
     model_path = args.model_path
     model_name = args.model
+    injection_number = args.injection_number
+    injection_percentage = args.injection_percentage
+    initialization = args.initialization
+    connection = args.connection
     
     if dataset_name in TUD.keys():
         degree_as_attr = TUD[dataset_name]
@@ -123,7 +173,6 @@ if __name__ == '__main__':
     elif model_name=='GIN':
         model = GIN(5,2,input_dim,hidden_dim,output_dim,dropout).to(device)
         load_path = model_path + '{}_{}.pt'.format(dataset_name, model_name)
-        # load_path = model_path + '{}.pt'.format(dataset_name)
     elif model_name=='GUN':
         model = GUNet(input_dim,hidden_dim,output_dim,0.8,3,dropout).to(device)
         load_path = model_path + '{}_{}.pt'.format(dataset_name, model_name)
@@ -167,42 +216,34 @@ if __name__ == '__main__':
         print('begin to attack instance {}'.format(i))
         x0 = test_dataset[i].to(device)
 
-
-        # this part is added:
-        #-----------------------------------------------------------------------
-        # print("\n \n \n \n \n")
         print("---------------------------instance",i,"basic info-----------------------------------")
         print("x0 before node injection is:", x0)
         print("number of nodes before: ", len(x0.x))
-        # print("the information in x0 is:", x0.x)
 
         G0 = to_networkx(x0, to_undirected=True)
-        # print("nodes before injection:",list(G0.nodes))
         print("edges before injection:",list(G0.edges))
-        # print("the information in G0 is:", G0.nodes.data())
 
-
-
-        #-----------------------------------------------------------------------
         y0 = x0.y[0]
         y1 = model.predict(x0, device)
-        #-----------------------------------------------------------------------
-
-
 
         # inject node
-        num_injected = max(1, int(x0.num_nodes*args.injection_percentage))
-        x0 = inject_node(x0, initialization=args.initialization, num_inject=num_injected)
+        if injection_number == 0 and injection_percentage == 0:
+            pass
+        # if num_inject not specified, then use percentage
+        elif injection_number == 0 and injection_percentage != 0:
+            num_injected = max(1, int(x0.num_nodes*args.injection_percentage))
+            x0 = inject_node(x0, initialization=initialization, num_inject=num_injected, connection = connection)
+        elif injection_number != 0 and injection_percentage == 0:
+            num_injected = injection_number
+            x0 = inject_node(x0, initialization=initialization, num_inject = injection_number, connection = connection)
+        else:
+            print("Cannot have mixed specifications of injection_number and injection_percentage!")
+            exit()
+
+
         print("x0 after node injection is:", x0)
         print("number of nodes after: ", len(x0.x))
         G1 = to_networkx(x0, to_undirected=True)
-        # print("the information in x0 is:", x0.x)
-        # print("nodes after injection:",list(G1.nodes))
-        # print("edges after injection:",list(G1.edges))
-        # print("the information in G1 is:", G1.nodes.data())
-
-
-        # print("x0 edge index is:",x0.edge_index)
         
         #-----------------------------------------------------------------------
 
@@ -216,6 +257,7 @@ if __name__ == '__main__':
 
         print("the ground truth y0 is:", y0.item())
         print("the model predict y1 is:", y1.item())
+        print("the prediction after injection y2 is:", y2.item())
         print("\n-----------------------------------------------------------------------------------")
 
         '''
@@ -328,9 +370,9 @@ if __name__ == '__main__':
     
 
 
-    success_ratio = num_success / (num_test - no_need_count)*100
+    success_ratio = (num_success + num_success_via_injection) / (num_test - no_need_count)*100
     avg_perturbation = sum(perturbation) / num_success
-    print("Sign-Opt: the success rate of black-box attack is {}/{} = {:.4f}".format(num_success,num_test-no_need_count, success_ratio))
+    print("Sign-Opt: the success rate of black-box attack is {}/{} = {:.4f}".format(num_success + num_success_via_injection, num_test-no_need_count, success_ratio))
     print('Sign-Opt: the average perturbation is {:.4f}'.format(avg_perturbation))
     print('Sign-Opt: the average perturbation ratio is {:.4f}'.format(sum(perturbation_ratio) / num_success*100))
     print('Sign-Opt: the average query count is {:.4f}'.format(sum(num_query)/(num_test-no_need_count)))
