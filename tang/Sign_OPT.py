@@ -323,28 +323,32 @@ class OPT_attack_sign_SGD(object):
         # Output the edge perturbation
         old_edges = list(G0.edges)
         new_edges = list(G_final.edges)
+        num_edge_from_injected = 0 
+        # if created an edge with injected node, +1, else if removed an edge with injected node, -1. if resulting number less than 0, means injected node is dangling
         
         edge_created = []
-        edge_from_injected_node = []
         for e in new_edges:
             if e not in old_edges:
                 edge_created.append(e)
                 num_nodes = len(x_final.x)
                 if (num_nodes - num_node_injected <= e[0] < num_nodes
                 or num_nodes - num_node_injected <= e[1] < num_nodes):
-                  edge_from_injected_node.append(e)
+                  num_edge_from_injected+=1
 
         edge_removed = []
         for e in old_edges:
             if e not in new_edges:
                 edge_removed.append(e)
+                num_nodes = len(x_final.x)
+                if (num_nodes - num_node_injected <= e[0] < num_nodes
+                or num_nodes - num_node_injected <= e[1] < num_nodes):
+                  num_edge_from_injected-=1
 
         num_edge_created = len(edge_created)
         num_edge_removed = len(edge_removed)
-        num_edge_from_injected = len(edge_from_injected_node)
         
         is_injected_nodes_dangling = False
-        if num_edge_from_injected == 0:
+        if num_edge_from_injected < 0:
           is_injected_nodes_dangling = True
 
         if num_edge_created == 0:
