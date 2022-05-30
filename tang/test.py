@@ -371,9 +371,9 @@ if __name__ == '__main__':
     
 
 
-    success_ratio = (num_success + num_success_via_injection) / (num_test - no_need_count)*100
+    success_ratio = (num_success) / (num_test - no_need_count)*100
     avg_perturbation = sum(perturbation) / num_success
-    print("Sign-Opt: the success rate of black-box attack is {}/{} = {:.4f}".format(num_success + num_success_via_injection, num_test-no_need_count, success_ratio))
+    print("Sign-Opt: the success rate of black-box attack is {}/{} = {:.4f}".format(num_success, num_test-no_need_count, success_ratio))
     print('Sign-Opt: the average perturbation is {:.4f}'.format(avg_perturbation))
     print('Sign-Opt: the average perturbation ratio is {:.4f}'.format(sum(perturbation_ratio) / num_success*100))
     print('Sign-Opt: the average query count is {:.4f}'.format(sum(num_query)/(num_test-no_need_count)))
