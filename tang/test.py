@@ -244,6 +244,7 @@ if __name__ == '__main__':
         print("x0 after node injection is:", x0)
         print("number of nodes after: ", len(x0.x))
         G1 = to_networkx(x0, to_undirected=True)
+        print("edges after injection:",list(G1.edges))
         
         #-----------------------------------------------------------------------
 
