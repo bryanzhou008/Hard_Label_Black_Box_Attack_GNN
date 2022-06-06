@@ -1,8 +1,10 @@
-# Content we added for Node Injection Attack
-Detailed description of the modifications and directions can be found in the separate folders.
+# Hard Label Black Box Node Injection Attack on Graph Neural Network
+This is the official code repository of the paper ["Hard Label Black Box Node Injection Attack on Graph Neural Network"]. 
+
+Detailed descriptions can be found in the separate folders.
 
 
-# Content of the original repository we forked from (used for training target models)
+# General Instructions adapted from the [CCS21_GNNattack reference paper](https://github.com/mujm/CCS21_GNNattack)
 
 ## Black-box Adversarial Attack to GNN
 
@@ -91,6 +93,4 @@ Note:  `--method` : the attack method to generate training dataset for the detec
 
 `--model` : the model structure of detector
 
-### Defend Adversarial Attack
 
-please refer to the origin paper and code of [low-rank](https://github.com/DSE-MSU/DeepRobust)
