@@ -1,12 +1,12 @@
 # Hard Label Black Box Node Injection Attack on Graph Neural Network
-This is the official Pytorch code repository of the paper "Hard Label Black Box Node Injection Attack on Graph Neural Network". 
+This is the official Pytorch code repository of the paper "Hard Label Black Box Node Injection Attack on Graph Neural Network"
 
-Detailed descriptions can be found in the separate folders.
+Detailed code descriptions can be found in the separate folders
+
+This code was tested with python 3.6 and pytorch 1.4
 
 
 ## General Instructions adapted from [CCS21_GNNattack](https://github.com/mujm/CCS21_GNNattack)
-
-This code was tested with python 3.6 and pytorch 1.4
 
 ### Train target models
 To train target GNN models (GIN, SAG, GUNet) on three datasets (COIL-DEL, IMDB-BINARY, NCI1), use [main.py](https://github.com/mujm/Black-box-Adversarial-Attack-to-GNN/blob/master/main.py)
