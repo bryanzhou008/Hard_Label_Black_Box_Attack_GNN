@@ -14,4 +14,4 @@ test.py: Additional metrics and args for stats related to our experiments; some 
 (4): --connection: connection initialization method
 
 
-test.py: Visualizations of the adversiarial attack process; Images are stored in [my google drive] (https://drive.google.com/drive/folders/1KKUxiVhgUXbEJn9jaGikYvepsv_BPdoS)
+test.py: Visualizations of the adversiarial attack process; Images are stored in [my google drive](https://drive.google.com/drive/folders/1KKUxiVhgUXbEJn9jaGikYvepsv_BPdoS)
