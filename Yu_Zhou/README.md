@@ -1,6 +1,6 @@
-# Single Node Injection
+# This is the sub-directory of the project by Yu Zhou
 
-## This is the sub-directory of the project by Yu Zhou
+## Single Node Injection
 
 This folder maily contains the modified source code for Single Node Injection on GNN. Most modifications are in:
 
@@ -15,7 +15,7 @@ test.py: Additional metrics and args for stats related to our experiments; some 
 (4): --connection: connection initialization method
 
 
-# Visualization and Demo
+## Visualization and Demo
 
 visualization.py: Visualizations of the adversiarial attack process. Generation results are stored in:
 
