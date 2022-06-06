@@ -330,7 +330,10 @@ class OPT_attack_sign_SGD(object):
         print("Attack succeed: distortion %.4f perturbation %d queries %d \nTime: %.4f seconds" % (F_theta.item(), L0_norm(g_theta*theta,self.device).item(), query_count, time_end-time_start))
 
         # added:
+        #-----------------------------------------------------------------------
+        print("x_final.edge_index:")
         print(x_final.edge_index)
+        #-----------------------------------------------------------------------
 
 
         return x_final, target, query_count, True, F_theta.item(), init
