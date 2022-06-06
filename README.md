@@ -1,5 +1,5 @@
 # Hard Label Black Box Node Injection Attack on Graph Neural Network
-This is the official code repository of the paper ["Hard Label Black Box Node Injection Attack on Graph Neural Network"]. 
+This is the official code repository of the paper "Hard Label Black Box Node Injection Attack on Graph Neural Network". 
 
 Detailed descriptions can be found in the separate folders.
 
