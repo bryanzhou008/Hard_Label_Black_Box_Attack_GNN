@@ -1,5 +1,7 @@
 # Single Node Injection
 
+## This is the sub-directory of the project by Yu Zhou
+
 This folder maily contains the modified source code for Single Node Injection on GNN. Most modifications are in:
 
 test.py: Additional metrics and args for stats related to our experiments; some args include:
