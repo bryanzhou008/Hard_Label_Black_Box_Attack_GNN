@@ -1,4 +1,8 @@
-# Content of the original repository we forked from:
+# Content we added for Node Injection Attack
+Detailed description of the modifications and directions can be found in the separate folders.
+
+
+# Content of the original repository we forked from (used for training target models)
 
 ## Black-box Adversarial Attack to GNN
 
@@ -90,6 +94,3 @@ Note:  `--method` : the attack method to generate training dataset for the detec
 ### Defend Adversarial Attack
 
 please refer to the origin paper and code of [low-rank](https://github.com/DSE-MSU/DeepRobust)
-
-# content we added for Node Injection Attack
-Detailed description of the modifications and directions can be found in the separate folders.
