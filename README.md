@@ -1,4 +1,6 @@
-# Black-box Adversarial Attack to GNN
+# Content of the original repository we forked from:
+
+## Black-box Adversarial Attack to GNN
 
 Code for [A Hard Label Black-box Adversarial Attack Against Graph Neural Network](https://arxiv.org/pdf/2108.09513)
 
@@ -6,7 +8,7 @@ For questions/concerns/bugs please feel free to email [mujm19@mails.tsinghua.edu
 
 This code was tested with python 3.6 and pytorch 1.4
 
-## Train target models
+### Train target models
 To train target GNN models (GIN, SAG, GUNet) on three datasets (COIL-DEL, IMDB-BINARY, NCI1), use [main.py](https://github.com/mujm/Black-box-Adversarial-Attack-to-GNN/blob/master/main.py)
 
 e.g., to train GIN model on NCI1 dataset, use:
@@ -15,7 +17,7 @@ e.g., to train GIN model on NCI1 dataset, use:
 
 the trained model will be saved in path: `./trained_model` (create by yourself if does not exist).
 
-## Attack target GNN
+### Attack target GNN
 To attack target GNN models via our hard lable black-box adversarial attack, use [test.py](https://github.com/mujm/Black-box-Adversarial-Attack-to-GNN/blob/master/test.py)
 
 e.g., to attack SAG model on IMDB-BINARY dataset (make sure you have trained the model before attack), use:
@@ -32,7 +34,7 @@ Note: the meanings of some paras are:
 
 `--search` : the search strategy of CGS algorithm
 
-### process the attack results
+#### process the attack results
 
 To process the attack results, use [process_results.py](https://github.com/mujm/Black-box-Adversarial-Attack-to-GNN/blob/master/process_results.py)
 It will print the SR/AP/AQ/QT/APR(ignore)/AD(ignore) of one trail.
@@ -45,7 +47,7 @@ it will print the SR/AP/AQ/AT of our and random attacks against GIN model which 
 
 Note: the attack results of two GNN models (e.g., GIN and SAG) will overlap so make sure you save them in different folders.
 
-## Random attack
+### Random attack
 To attack target GNN models via random attack, use [random_attack.py](https://github.com/mujm/Black-box-Adversarial-Attack-to-GNN/blob/master/random_attack.py)
 
 e.g., to attack GUNet model on IMDB-BINARY dataset (make sure you have trained the model before attack), use:
@@ -54,14 +56,14 @@ e.g., to attack GUNet model on IMDB-BINARY dataset (make sure you have trained t
 
 the attack results will be saved in path: `./out1`
 
-## RL-S2V attack
+### RL-S2V attack
 please refer the initial paper and code of [RL-S2V](https://github.com/Hanjun-Dai/graph_adversarial_attack)
 
-## Detect Adversarial Graphs
+### Detect Adversarial Graphs
 
 The first countmeasure against our attack: detection.
 
-### generate training dataset for detectors
+#### generate training dataset for detectors
 
 To generate training dataset for binary detectors, use [detection_train_dataset.py](https://github.com/mujm/Black-box-Adversarial-Attack-to-GNN/blob/master/detection_train_dataset.py). It will randomly select some graphs in the original training dataset and acquire their corresponding adversarial graphs via our attack.
 
@@ -85,6 +87,9 @@ Note:  `--method` : the attack method to generate training dataset for the detec
 
 `--model` : the model structure of detector
 
-## Defend Adversarial Attack
+### Defend Adversarial Attack
 
 please refer to the origin paper and code of [low-rank](https://github.com/DSE-MSU/DeepRobust)
+
+# content we added for Node Injection Attack
+Detailed description of the modifications and directions can be found in the separate folders.
