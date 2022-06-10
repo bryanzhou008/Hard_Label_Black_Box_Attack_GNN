@@ -1,7 +1,7 @@
 # Hard Label Black Box Node Injection Attack on Graph Neural Network
 This is the official Pytorch code repository of the paper "Hard Label Black Box Node Injection Attack on Graph Neural Network"
 
-Detailed code descriptions can be found in the separate folders
+Detailed code descriptions can be found in the separate subfolders
 
 This code was tested with python 3.6 and pytorch 1.4
 
