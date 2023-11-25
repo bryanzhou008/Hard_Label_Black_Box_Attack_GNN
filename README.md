@@ -18,7 +18,7 @@ e.g., to train GIN model on NCI1 dataset, use:
 the trained model will be saved in path: `./trained_model` (create by yourself if does not exist).
 
 ### Attack target GNN
-To attack target GNN models via our hard lable black-box adversarial attack, use [test.py](https://github.com/mujm/Black-box-Adversarial-Attack-to-GNN/blob/master/test.py)
+To attack target GNN models via our hard label black-box adversarial attack, use [test.py](https://github.com/mujm/Black-box-Adversarial-Attack-to-GNN/blob/master/test.py)
 
 e.g., to attack SAG model on IMDB-BINARY dataset (make sure you have trained the model before attack), use:
 
